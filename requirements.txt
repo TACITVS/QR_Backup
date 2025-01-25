@@ -1,0 +1,8 @@
+PyQt5
+numpy
+pycryptodome
+argon2-cffi
+qrcode
+Pillow
+pyzbar
+opencv-python
