@@ -1,5 +1,3 @@
-# gui/main_window.py
-
 import sys
 import os
 import base64
@@ -18,7 +16,7 @@ from PyQt5.QtCore import Qt
 
 from utils.crypto_handler import CryptoHandler
 from utils.qr_code_generator import QRCodeGenerator
-from utils.config import QRErrorCorrection, QRCodeParameters, QR_CAPACITY
+from utils.config import QRErrorCorrection, QRCodeParameters, QR_CAPACITY, SecurityConfig  # Ensure SecurityConfig is imported
 from gui.camera_scan_window import CameraScanWindow
 from pyzbar.pyzbar import decode
 from PIL import Image
@@ -37,6 +35,7 @@ class QRBackupApp(QWidget):
         self.original_text: str = ""
         
         self._setup_ui()
+
 
     def _setup_ui(self) -> None:
         """Initialize the user interface."""
@@ -733,6 +732,8 @@ class QRBackupApp(QWidget):
             logging.error(f"Error reading QR code: {e}")
             return None
 
+    # gui/main_window.py
+
     def _process_decrypted_data(self, qr_content: str) -> None:
         """Process and handle decrypted data."""
         try:
@@ -778,6 +779,51 @@ class QRBackupApp(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Process Error", f"Failed to process data: {str(e)}")
             logging.error(f"Error processing decrypted data: {e}")
+
+            """Process and handle decrypted data."""
+            try:
+                # Parse JSON content
+                content = json.loads(qr_content)
+                b64_encoded = content.get("data")
+                sha256_hash = content.get("hash")
+                kdf_version = content.get("kdf_version", "pbkdf2")  # Default to PBKDF2 for backward compatibility
+
+                if not b64_encoded or not sha256_hash:
+                    QMessageBox.warning(self, "Data Error", "QR code does not contain valid data.")
+                    return
+
+                # Determine if the QR code is from the old version (no kdf_version)
+                is_old_qr = 'kdf_version' not in content
+
+                if is_old_qr:
+                    # Old QR codes: Hash is on raw payload
+                    payload = base64.b64decode(b64_encoded)
+                    computed_hash = hashlib.sha256(payload).hexdigest()
+                else:
+                    # New QR codes: Hash is on base64-encoded data
+                    computed_hash = hashlib.sha256(b64_encoded.encode('utf-8')).hexdigest()
+
+                if computed_hash != sha256_hash:
+                    QMessageBox.warning(
+                        self,
+                        "Integrity Error",
+                        "SHA-256 hash does not match. Data may be corrupted or tampered with."
+                    )
+                    return
+
+                # Decrypt data
+                decrypted_data = self._decrypt_data(b64_encoded, kdf_version)
+                if not decrypted_data:
+                    return
+
+                # Handle decrypted data
+                self._handle_decrypted_data(decrypted_data)
+
+            except json.JSONDecodeError:
+                QMessageBox.warning(self, "Format Error", "QR code does not contain valid JSON data.")
+            except Exception as e:
+                QMessageBox.critical(self, "Process Error", f"Failed to process data: {str(e)}")
+                logging.error(f"Error processing decrypted data: {e}")
 
     def _verify_data_hash(self, b64_encoded: str, sha256_hash: str, is_old_qr: bool) -> bool:
         """Verify SHA-256 hash of the data."""
