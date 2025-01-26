@@ -35,4 +35,8 @@ if __name__ == "__main__":
     # Save hashes to a file
     save_hashes(hashes, output_file)
     
+<<<<<<< HEAD
     print(f'SHA256 hashes have been saved to {output_file}')
+=======
+    print(f'SHA256 hashes have been saved to {output_file}')
+>>>>>>> 130bd023b0c1f63eb33684eea6c7b16c58d00078
