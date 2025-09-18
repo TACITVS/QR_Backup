@@ -14,12 +14,14 @@ from PyQt5.QtWidgets import (
     QTabWidget, QCheckBox, QInputDialog
 )
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread
 
 from utils.crypto_handler import CryptoHandler
 from utils.qr_code_generator import QRCodeGenerator
-from utils.config import QRErrorCorrection, QRCodeParameters, QR_CAPACITY
+from utils.config import QRErrorCorrection, QRCodeParameters, QR_CAPACITY, SecurityConfig
 from gui.camera_scan_window import CameraScanWindow
+from encryption_worker import EncryptionWorker
+from decryption_worker import DecryptionWorker
 from pyzbar.pyzbar import decode
 from PIL import Image
 
@@ -163,6 +165,34 @@ class QRBackupApp(QWidget):
     def _browse_file(self) -> None:
         """Handle file browser dialog."""
         options = QFileDialog.Options()
+
+    def _start_encryption_worker(self, data: bytes, password: str, params: QRCodeParameters) -> None:
+        """Initialize and start the encryption worker thread."""
+        self.thread = QThread()
+        self.worker = EncryptionWorker(data, password, params)
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.worker.success.connect(self._on_encryption_success)
+        self.worker.error.connect(self._on_encryption_error)
+
+        self.thread.start()
+        QMessageBox.information(self, "Processing", "Encryption and QR code generation started...")
+
+    def _on_encryption_success(self, pixmap: QPixmap, qr_content: str, params: QRCodeParameters) -> None:
+        """Handle successful encryption and QR code generation."""
+        self.qr_label.setPixmap(pixmap.scaled(400, 400, Qt.KeepAspectRatio))
+        self.current_qr_content = qr_content
+        self.current_qr_params = params
+        QMessageBox.information(self, "Success", "QR Code generated successfully!")
+
+    def _on_encryption_error(self, error_message: str) -> None:
+        """Handle errors from the encryption worker."""
+        QMessageBox.critical(self, "Error", error_message)
         file, _ = QFileDialog.getOpenFileName(
             self, 
             "Select File to Encrypt", 
@@ -666,6 +696,31 @@ class QRBackupApp(QWidget):
     def _browse_qr(self) -> None:
         """Handle QR code image file selection."""
         options = QFileDialog.Options()
+
+    def _start_decryption_worker(self, qr_path: str, password: str) -> None:
+        """Initialize and start the decryption worker thread."""
+        self.thread = QThread()
+        self.worker = DecryptionWorker(qr_path, password)
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.worker.success.connect(self._on_decryption_success)
+        self.worker.error.connect(self._on_decryption_error)
+
+        self.thread.start()
+        QMessageBox.information(self, "Processing", "Decryption started...")
+
+    def _on_decryption_success(self, decrypted_data: bytes) -> None:
+        """Handle successful decryption."""
+        self._handle_decrypted_data(decrypted_data)
+
+    def _on_decryption_error(self, error_message: str) -> None:
+        """Handle errors from the decryption worker."""
+        QMessageBox.critical(self, "Error", error_message)
         file, _ = QFileDialog.getOpenFileName(
             self,
             "Select QR Code Image",
