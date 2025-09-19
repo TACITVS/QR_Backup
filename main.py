@@ -10,20 +10,20 @@ def main():
     try:
         # Configure logging
         logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-        
+
         # Initialize the application
         app = QApplication(sys.argv)
-        
+
         # Set application style
         app.setStyle('Fusion')
-        
+
         # Create and show the main window
         window = QRBackupApp()
         window.show()
-        
+
         # Start the event loop
         sys.exit(app.exec_())
-        
+
     except Exception as e:
         # Handle any unexpected errors during startup
         if 'app' in locals():
