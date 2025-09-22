@@ -1,8 +1,8 @@
 PyQt5
-numpy
-pycryptodome
 argon2-cffi
-qrcode
+cryptography
+segno
 Pillow
 pyzbar
 opencv-python
+mnemonic
