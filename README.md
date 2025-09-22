@@ -2,6 +2,8 @@
 
 This repository now ships a single-file PyQt5 application – `secure_qr_backup_monolithic.py` – that combines the most useful ideas from the original multi-module prototype and the monolithic reference implementation.  It provides an end-to-end workflow for generating secrets, encrypting data, producing QR codes/JSON backups, and restoring that data with strong password-based encryption.
 
+All legacy helper modules have been retired; the repository contains only this monolithic script along with the accompanying documentation and license.
+
 > **Security Warning**
 > The tool is provided for educational purposes only.  It has not been audited by security professionals.  Treat any secrets that touch an online machine or clipboard as compromised.
 
